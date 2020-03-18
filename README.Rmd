@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 
 library(tidyverse)
-library(cowplot)
+# library(cowplot)
 library(knitr)
 library(kableExtra)
 
@@ -73,7 +73,7 @@ We now combine these two datasets and plot them. We use a log scale for the y ax
 ```{r}
 df <- rbind(flu_ifr, covid19_ifr)
 
-p <- ggplot(df, aes(age, IFR, color = disease)) +
+ggplot(df, aes(age, IFR, color = disease)) +
   geom_line(size = 1.5) +
   xlab("Age (years)") +
   scale_y_log10(
@@ -87,7 +87,7 @@ p <- ggplot(df, aes(age, IFR, color = disease)) +
     name = NULL,
     values = c(`COVID-19` = "#D55E00", `Seasonal Influenza` = "#0072B2")
   ) +
-  theme_minimal_hgrid() +
+  theme_bw() +
   theme(
     axis.line.x = element_blank(),
     legend.position = c(1, 0.05),
@@ -95,7 +95,6 @@ p <- ggplot(df, aes(age, IFR, color = disease)) +
   ) +
   coord_cartesian(clip = "off")
 
-save_plot("COVID-19_log.png", p)
 p
 ```
 
@@ -104,7 +103,7 @@ We see that indeed the COVID-19 curve is systematically shifted relative to the 
 For comparison, we can also use a linear scale for the y axis. This representation emphasizes the high risk that COVID-19 poses for the elderly, but it hides the fact that for younger people COVID-19 is also much more risky than the seasonal influenza.
 
 ```{r}
-p <- ggplot(df, aes(age, IFR, color = disease)) +
+ggplot(df, aes(age, IFR, color = disease)) +
   geom_line(size = 1.5) +
   xlab("Age (years)") +
   scale_y_continuous(
@@ -118,7 +117,7 @@ p <- ggplot(df, aes(age, IFR, color = disease)) +
     name = NULL,
     values = c(`COVID-19` = "#D55E00", `Seasonal Influenza` = "#0072B2")
   ) +
-  theme_minimal_hgrid() +
+  theme_bw() +
   theme(
     axis.line.x = element_blank(),
     legend.position = c(.1, .9),
@@ -126,6 +125,36 @@ p <- ggplot(df, aes(age, IFR, color = disease)) +
   ) +
   coord_cartesian(clip = "off")
 
-save_plot("COVID-19_linear.png", p)
-p
 ```
+
+```{r}
+flu_lm <- lm(log10(IFR) ~ poly(age, 2), data = flu_ifr)
+summary(flu_lm)
+plot(flu_lm)
+
+covid_lm <- lm(IFR ~ poly(age, 2), data = covid19_ifr)
+summary(covid_lm)
+plot(covid_lm)
+
+ifr_predictions <-
+  tibble(
+  age = 10:90,
+  ferguson_groups = cut(:0, breaks = c(seq(0, 80, by = 10), 90), right = F, include.lowest = T),
+  quandelacy_groups = cut(0:100, breaks = c(0, 18, 50, 65, 75, 100), right = F, include.lowest = T)
+) %>%
+  mutate(
+    log10_flu = predict(flu_lm, newdata = tibble(age = 0:100)),
+    lin_flu = 10^log10_flu,
+    log10_covid = predict(covid_lm, newdata = tibble(age = 0:100)),
+    lin_covid = 10^log10_covid
+  ) 
+
+ifr_predictions %>%
+  ggplot(aes(age)) +
+  geom_line(aes(y = log10_flu), colour = "blue") +
+  geom_line(aes(y = log10_covid), colour = "red")
+
+
+  
+```
+
